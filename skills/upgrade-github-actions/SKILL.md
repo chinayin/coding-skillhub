@@ -1,49 +1,49 @@
 ---
 name: upgrade-github-actions
-description: 扫描并升级项目中所有 GitHub Actions 到最新主版本，通过 GitHub API 确认版本
+description: Scan and upgrade all GitHub Actions in a project to their latest major versions, confirmed via GitHub API
 version: 1.0.0
 tags: [github-actions, ci, upgrade, workflow, dependabot]
 ---
 
 # Upgrade GitHub Actions
 
-当用户要求升级 GitHub Actions 时，按以下流程操作：
+When the user asks to upgrade GitHub Actions, follow this workflow:
 
-## 流程
+## Workflow
 
-1. **扫描工作流文件**：查找 `.github/workflows/` 下所有 `.yml`/`.yaml` 文件
-2. **提取当前 action 版本**：识别所有 `uses:` 引用的 action 及其版本标签（包括第三方 action）
-3. **查询最新版本**：使用 GitHub API 确认每个 action 的最新版本（见下方"版本查询方法"）
-4. **对比差异**：列出需要升级的 action，格式如下表：
+1. **Scan workflow files**: Find all `.yml`/`.yaml` files under `.github/workflows/`
+2. **Extract current action versions**: Identify all `uses:` references and their version tags (including third-party actions)
+3. **Query latest versions**: Use the GitHub API to confirm each action's latest version (see "Version Query Method" below)
+4. **Compare differences**: List actions that need upgrading in this format:
 
-| 文件 | Action | 当前版本 | 最新版本 | 备注 |
-|------|--------|---------|---------|------|
+| File | Action | Current Version | Latest Version | Notes |
+|------|--------|----------------|----------------|-------|
 
-5. **确认后批量更新**：用户确认后，修改所有 workflow 文件
-6. **验证**：检查 workflow 文件语法是否正确（缩进、引号等）
-7. **提交并推送**：commit message 格式为 `chore: bump github actions (<action 列表简述>)`
+5. **Batch update after confirmation**: Once the user confirms, modify all workflow files
+6. **Validate**: Check workflow file syntax (indentation, quotes, etc.)
+7. **Commit and push**: Commit message format: `chore: bump github actions (<brief action list>)`
 
-## 版本查询方法（关键）
+## Version Query Method (Critical)
 
-**必须使用 GitHub API，禁止依赖 web 搜索判断版本。** Web 搜索结果存在严重缓存问题，会返回过时数据导致误判。
+**You MUST use the GitHub API. Do NOT rely on web search to determine versions.** Web search results have severe caching issues and return outdated data, leading to incorrect version judgments.
 
-### 唯一权威方式：fetch GitHub Releases API
+### The only authoritative method: fetch GitHub Releases API
 
 ```
 https://api.github.com/repos/{owner}/{repo}/releases/latest
 ```
 
-从返回 JSON 中提取 `tag_name` 字段即为最新版本。
+Extract the `tag_name` field from the returned JSON — that is the latest version.
 
-示例：查询 `docker/login-action` 最新版本：
+Example: Query latest version of `docker/login-action`:
 - fetch `https://api.github.com/repos/docker/login-action/releases/latest`
-- 读取响应中 `"tag_name": "v4.2.0"` → 主版本为 `@v4`
+- Read `"tag_name": "v4.2.0"` from response → major version is `@v4`
 
-### 执行时逐个 action fetch API，不可跳过，不可用搜索替代。
+### Fetch the API for each action individually. Do NOT skip any. Do NOT substitute with web search.
 
-## 常见 Docker 相关 Actions 版本参考
+## Common Docker-Related Actions Version Reference
 
-> **最后通过 API 验证时间：2026 年 5 月**
+> **Last verified via API: May 2026**
 
 - `actions/checkout@v6`
 - `docker/setup-qemu-action@v4`
@@ -53,18 +53,18 @@ https://api.github.com/repos/{owner}/{repo}/releases/latest
 - `docker/build-push-action@v7`
 - `peter-evans/dockerhub-description@v5`
 
-> 如版本与上述不一致，说明需要升级。执行升级时必须通过 API 确认是否有更新的主版本，不可仅凭此表。
+> If versions differ from the above, an upgrade is needed. When performing upgrades, you MUST verify via API whether a newer major version exists — do not rely solely on this table.
 
-## 注意事项
+## Important Notes
 
-- 使用主版本标签（如 `@v4`）而非完整版本号（如 `@v4.1.0`），这样会自动获得 minor/patch 更新
-- 升级主版本前，快速确认是否有 breaking changes（查看 release notes 的 body 字段）
-- Docker 系列 action（docker/*）通常会同步发布新主版本，如果其中一个升了大版本，其他的大概率也有对应升级
-- 如果项目配置了 dependabot / renovate 且已有相关 PR，升级后可以关闭对应 PR
-- 同一仓库下所有 workflow 文件应保持一致的 action 版本
-- 升级后建议观察一次 CI 运行结果，确认没有 breaking changes 影响
+- Use major version tags (e.g., `@v4`) rather than full version numbers (e.g., `@v4.1.0`), so minor/patch updates are received automatically
+- Before upgrading a major version, quickly check for breaking changes (look at the `body` field in release notes)
+- Docker-related actions (docker/*) typically release new major versions in sync — if one gets a major bump, others likely do too
+- If the project has dependabot/renovate configured and related PRs exist, close those PRs after upgrading
+- All workflow files in the same repository should use consistent action versions
+- After upgrading, observe one CI run to confirm no breaking changes
 
-## 安全建议
+## Security Recommendations
 
-- 升级时注意检查 action 的权限变更（特别是 `permissions` 相关）
-- 关注 GitHub 官方安全公告，及时升级有已知漏洞的 action 版本
+- When upgrading, check for permission changes in actions (especially `permissions`-related)
+- Monitor GitHub official security advisories and promptly upgrade action versions with known vulnerabilities
