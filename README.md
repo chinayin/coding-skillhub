@@ -12,17 +12,23 @@
 
 ```
 skills/
-└── upgrade-github-actions/   # 升级项目中的 GitHub Actions 版本
-    └── SKILL.md
+├── upgrade-github-actions/   # 升级项目中的 GitHub Actions 版本
+│   └── SKILL.md
+└── gen-ssh-key/              # 按团队规范生成 SSH 密钥
+    ├── SKILL.md
+    ├── gen-ssh-key.sh        # 核心脚本
+    ├── test.sh               # 自测
+    └── .env.example          # 配置样例
 ```
 
-每个技能以独立目录存在，目录名即技能名，内部包含 `SKILL.md` 文件。
+每个技能以独立目录存在，目录名即技能名，内部至少包含 `SKILL.md` 文件；带脚本的技能同目录附带可执行脚本与配置样例。
 
 ## 技能列表
 
 | 技能 | 说明 |
 |------|------|
 | `upgrade-github-actions` | 扫描并升级 GitHub Actions 到最新主版本，通过 API 确认版本 |
+| `gen-ssh-key` | 按团队规范生成 SSH 密钥（Ed25519 默认 / RSA 4096 兜底，puttygen 优先降级 ssh-keygen） |
 
 ## 使用
 
