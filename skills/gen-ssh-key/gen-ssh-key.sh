@@ -2,11 +2,11 @@
 # gen-ssh-key —— 按团队规则生成 SSH 密钥(Ed25519 默认 / RSA 4096 兜底;puttygen 优先,ssh-keygen 降级)
 set -euo pipefail
 
-VERSION="0.1.0"
+VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die()  { echo "错误: $*" >&2; exit 1; }
-warn() { echo "⚠️  $*" >&2; }
+warn() { echo "警告: $*" >&2; }
 
 usage() {
   cat <<'EOF'
@@ -19,15 +19,19 @@ usage() {
   --out-dir <dir>         输出目录(默认 .env 的 SSH_KEY_OUTPUT_DIR,再默认当前目录)
   --tool puttygen|ssh-keygen  强制工具(默认 auto)
   --force                 覆盖同名密钥(默认拒绝)
-  --json                  机器可读输出
+  --json                  机器可读输出(纯 JSON 走 stdout)
   --dry-run               仅打印计划,不生成
+  -v, --verbose           打印诊断过程到 stderr(不污染 stdout)
+  --                      结束选项解析(其后一律当作 <name>)
   --version               打印版本
   -h, --help              帮助
 EOF
 }
 
 KEY_TYPE="ed25519"; COMMENT=""; PASSPHRASE_FILE=""; OUT_DIR=""
-TOOL="auto"; FORCE=0; JSON=0; DRY_RUN=0; NAME=""
+TOOL="auto"; FORCE=0; JSON=0; DRY_RUN=0; VERBOSE=0; NAME=""
+
+set_name() { if [ -z "$NAME" ]; then NAME="$1"; else die "多余参数: $1"; fi; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -39,12 +43,17 @@ while [ $# -gt 0 ]; do
     --force) FORCE=1; shift ;;
     --json) JSON=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    -v|--verbose) VERBOSE=1; shift ;;
     --version) echo "$VERSION"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
+    --) shift; while [ $# -gt 0 ]; do set_name "$1"; shift; done ;;
     -*) usage >&2; die "未知选项: $1" ;;
-    *) if [ -z "$NAME" ]; then NAME="$1"; else die "多余参数: $1"; fi; shift ;;
+    *) set_name "$1"; shift ;;
   esac
 done
+
+# 诊断信息只走 stderr,不污染 stdout(公钥 / JSON)
+vlog() { [ "$VERBOSE" -eq 1 ] && echo "verbose: $*" >&2 || true; }
 
 [ -n "$NAME" ] || { usage >&2; die "缺少必填参数 <name>"; }
 case "$NAME" in */*|*' '*) die "name 不能含 / 或空格: $NAME" ;; esac
@@ -79,6 +88,10 @@ if [ -z "$RESOLVED_TOOL" ]; then
   echo "安装: brew install putty  (或使用系统自带 ssh-keygen)" >&2
   exit 2
 fi
+
+vlog "工具=$RESOLVED_TOOL 类型=$KEY_TYPE 备注=$COMMENT"
+vlog "输出目录=$OUT_DIR"
+[ -f "$SCRIPT_DIR/.env" ] && vlog "已加载配置: $SCRIPT_DIR/.env" || true
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "tool=$RESOLVED_TOOL"
@@ -120,6 +133,7 @@ gen_sshkeygen() {
   local pass; pass="$(read_passphrase)"
   local args=(-t "$KEY_TYPE" -C "$COMMENT" -f "$PEM" -N "$pass" -q)
   [ "$KEY_TYPE" = "rsa" ] && args=(-t rsa -b 4096 -C "$COMMENT" -f "$PEM" -N "$pass" -q)
+  vlog "执行: ssh-keygen ${args[*]}"
   ssh-keygen "${args[@]}"
   mv -f "$PEM.pub" "$PUB"
 }
@@ -135,6 +149,7 @@ gen_puttygen() {
   local genargs=(-t "$KEY_TYPE")
   [ "$KEY_TYPE" = "rsa" ] && genargs+=(-b 4096)
   genargs+=(-C "$COMMENT" -o "$PPK" --new-passphrase "$ppf")
+  vlog "执行: puttygen ${genargs[*]}"
   puttygen "${genargs[@]}"
 
   # 从 ppk 导出 openssh 私钥:源用 ppf 解密,新私钥用 ppf 加密(空文件即不加密)
@@ -169,7 +184,7 @@ emit_output() {
     printf '{"tool":"%s","type":"%s","passphrase_protected":%s,"files":[%s],"fingerprint":"%s","pubkey":"%s"}\n' \
       "$RESOLVED_TOOL" "$KEY_TYPE" "$protected" "$files" "$(json_escape "$fpr")" "$(json_escape "$pubkey")"
   else
-    echo "✅ 已生成 $KEY_TYPE 密钥($RESOLVED_TOOL):"
+    echo "已生成 $KEY_TYPE 密钥($RESOLVED_TOOL):"
     [ "$RESOLVED_TOOL" = "puttygen" ] && echo "  PPK : $PPK"
     echo "  私钥: $PEM (chmod 600)"
     echo "  公钥: $PUB"

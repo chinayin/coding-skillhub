@@ -8,8 +8,8 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 PASS=0; FAIL=0
-ok()   { echo "  ✅ $1"; PASS=$((PASS+1)); }
-bad()  { echo "  ❌ $1"; FAIL=$((FAIL+1)); }
+ok()   { echo "  [PASS] $1"; PASS=$((PASS+1)); }
+bad()  { echo "  [FAIL] $1"; FAIL=$((FAIL+1)); }
 assert_contains() { # <haystack> <needle> <msg>
   case "$1" in *"$2"*) ok "$3";; *) bad "$3 (期望包含: $2)";; esac; }
 assert_file() { [ -f "$1" ] && ok "$2" || bad "$2 (文件不存在: $1)"; }
@@ -20,7 +20,7 @@ assert_code() { # <actual> <expected> <msg>
 echo "== Task1: CLI 骨架 =="
 
 # 1. --version
-out="$("$SCRIPT" --version)"; assert_contains "$out" "0.1.0" "--version 打印版本号"
+out="$("$SCRIPT" --version)"; assert_contains "$out" "1.0.0" "--version 打印版本号"
 
 # 2. --help
 out="$("$SCRIPT" --help)"; assert_contains "$out" "用法" "--help 打印用法"
@@ -36,6 +36,36 @@ assert_contains "$out" "type=ed25519" "dry-run 显示默认 ed25519"
 assert_contains "$out" "$TMP/d1/demo.pem" "dry-run 显示 pem 路径"
 assert_no_file "$TMP/d1/demo.pem" "dry-run 不生成文件"
 
+# 5. name 含 / 或空格应拒绝
+set +e; "$SCRIPT" "a/b" >/dev/null 2>"$TMP/en1"; c1=$?; set -e
+assert_code "$c1" "1" "name 含 / 退出码 1"
+set +e; "$SCRIPT" "a b" >/dev/null 2>"$TMP/en2"; c2=$?; set -e
+assert_code "$c2" "1" "name 含空格退出码 1"
+
+# 6. 未知工具名报错
+set +e; "$SCRIPT" demo --tool nope >/dev/null 2>"$TMP/et"; ct=$?; set -e
+assert_code "$ct" "1" "未知 --tool 退出码 1"
+
+# 7. -- 结束选项解析,其后当作 name
+out="$("$SCRIPT" --tool ssh-keygen --out-dir "$TMP/dd" --dry-run -- demo)"
+assert_contains "$out" "$TMP/dd/demo.pem" "-- 之后的 token 作 name"
+
+# 8. --verbose 诊断走 stderr,不进 stdout
+D_V="$TMP/dv"
+outv="$("$SCRIPT" svc-v --tool ssh-keygen --out-dir "$D_V" -v 2>"$TMP/ev")"
+assert_contains "$(cat "$TMP/ev")" "verbose:" "verbose 诊断打到 stderr"
+assert_contains "$(cat "$TMP/ev")" "执行: ssh-keygen" "verbose 打印底层命令"
+case "$outv" in *verbose:*) bad "verbose 不应出现在 stdout";; *) ok "stdout 不含 verbose 噪音";; esac
+
+# 9. -v 与 --json 并用,stdout 仍是纯合法 JSON
+outj="$("$SCRIPT" svc-vj --tool ssh-keygen --out-dir "$D_V" -v --json 2>/dev/null)"
+if command -v python3 >/dev/null 2>&1; then
+  set +e; printf '%s' "$outj" | python3 -c 'import sys,json;json.load(sys.stdin)' >/dev/null 2>&1; vjc=$?; set -e
+  assert_code "$vjc" "0" "-v --json 时 stdout 仍是合法 JSON"
+else
+  ok "python3 未安装,跳过 -v --json 合法性校验"
+fi
+
 echo "== Task2: ssh-keygen 路径 =="
 D2="$TMP/d2"
 
@@ -47,7 +77,7 @@ assert_no_file "$D2/svc-a.ppk" "ssh-keygen 不产 .ppk"
 perm="$(stat -f '%Lp' "$D2/svc-a.pem" 2>/dev/null || stat -c '%a' "$D2/svc-a.pem")"
 assert_code "$perm" "600" "私钥权限 600"
 assert_contains "$(ssh-keygen -lf "$D2/svc-a.pub")" "ED25519" "公钥指纹为 ED25519"
-assert_contains "$(cat "$TMP/e2")" "⚠️" "无口令时有警告"
+assert_contains "$(cat "$TMP/e2")" "警告:" "无口令时有警告"
 
 # 覆盖守卫:同名再来一次应报错
 set +e; "$SCRIPT" svc-a --tool ssh-keygen --out-dir "$D2" >/dev/null 2>"$TMP/e2b"; code=$?; set -e
@@ -70,6 +100,9 @@ echo "s3cret-pass" > "$TMP/pp"
 assert_contains "$(head -3 "$D2/svc-p.pem")" "OPENSSH" "加密私钥仍为 OpenSSH 格式"
 set +e; ssh-keygen -y -P "" -f "$D2/svc-p.pem" >/dev/null 2>&1; nopass=$?; set -e
 [ "$nopass" -ne 0 ] && ok "空口令无法读取(说明已加密)" || bad "私钥未被加密"
+# 用正确口令(文件内容去尾换行)应能解开,证明口令即文件文本本身
+set +e; ssh-keygen -y -P "s3cret-pass" -f "$D2/svc-p.pem" >/dev/null 2>&1; okpass=$?; set -e
+assert_code "$okpass" "0" "ssh-keygen 路径:正确口令可解密"
 
 # --json 输出
 out="$("$SCRIPT" svc-j --tool ssh-keygen --out-dir "$D2" --json 2>/dev/null)"
@@ -108,6 +141,9 @@ if command -v puttygen >/dev/null 2>&1; then
   "$SCRIPT" svc-pgp --tool puttygen --out-dir "$D3" --passphrase-file "$TMP/ppg" >/dev/null 2>&1
   set +e; ssh-keygen -y -P "" -f "$D3/svc-pgp.pem" >/dev/null 2>&1; enc=$?; set -e
   [ "$enc" -ne 0 ] && ok "puttygen --passphrase-file 私钥被加密" || bad "puttygen 私钥未加密"
+  # 正确口令能解开 puttygen 导出的私钥(验证两条路径对口令文件的解读一致)
+  set +e; ssh-keygen -y -P "pg-pass" -f "$D3/svc-pgp.pem" >/dev/null 2>&1; pgok=$?; set -e
+  assert_code "$pgok" "0" "puttygen 路径:正确口令可解密"
 else
   ok "puttygen 未安装,跳过 Task3(降级路径已由 Task2 覆盖)"
 fi
