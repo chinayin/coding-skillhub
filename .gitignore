@@ -8,3 +8,6 @@ node_modules/
 
 # gen-ssh-key 本地配置(输出目录路径),仅提交 .env.example
 skills/gen-ssh-key/.env
+
+# 本地设计/计划/交接文档(非分发内容,不进 git)
+docs/
