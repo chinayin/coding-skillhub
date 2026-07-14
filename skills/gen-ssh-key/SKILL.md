@@ -78,9 +78,3 @@ a central directory such as `~/.ssh/team-keys`.
 
 `0` success; `1` bad argument, target exists, or generation failed; `2` no
 usable tool (neither puttygen nor ssh-keygen installed).
-
-## Self-test
-
-```bash
-bash test.sh
-```
