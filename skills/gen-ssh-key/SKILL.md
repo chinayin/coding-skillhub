@@ -43,7 +43,7 @@ retrying with `--force`.
 ./scripts/gen-ssh-key.sh jumpserver                       # Ed25519 -> jumpserver.{ppk,pem,pub}
 ./scripts/gen-ssh-key.sh gitlab --rsa                     # RSA 4096
 ./scripts/gen-ssh-key.sh svc-x --passphrase-file ./pp.txt --json
-./scripts/gen-ssh-key.sh jumpserver --out-dir ~/.ssh/team-keys
+./scripts/gen-ssh-key.sh jumpserver --out-dir ~/.ssh/generated-keys
 ./scripts/gen-ssh-key.sh jumpserver --comment "you@example.com"
 ./scripts/gen-ssh-key.sh jumpserver --dry-run             # show the plan only
 ./scripts/gen-ssh-key.sh --tool ssh-keygen jumpserver     # skip puttygen
@@ -64,7 +64,7 @@ retrying with `--force`.
 Output directory precedence: `--out-dir` > `SSH_KEY_OUTPUT_DIR` in `.env`
 (at the skill root, one level above `scripts/`) > current directory. For a
 persistent default, `cp .env.example .env` at the skill root and point it at
-a central directory such as `~/.ssh/team-keys`.
+a central directory such as `~/.ssh/generated-keys`.
 
 ## Artifacts
 
