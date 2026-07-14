@@ -20,7 +20,7 @@ assert_code() { # <actual> <expected> <msg>
 echo "== Task1: CLI 骨架 =="
 
 # 1. --version
-out="$("$SCRIPT" --version)"; assert_contains "$out" "1.0.0" "--version 打印版本号"
+out="$("$SCRIPT" --version)"; assert_contains "$out" "1.0.1" "--version 打印版本号"
 
 # 2. --help
 out="$("$SCRIPT" --help)"; assert_contains "$out" "用法" "--help 打印用法"
@@ -65,6 +65,23 @@ if command -v python3 >/dev/null 2>&1; then
 else
   ok "python3 未安装,跳过 -v --json 合法性校验"
 fi
+
+# 10. 输出目录未配置(无 --out-dir 且无 SSH_KEY_OUTPUT_DIR):提示落当前目录
+#     用 dry-run 不落盘,并在 $TMP 内运行避免污染仓库目录
+( cd "$TMP" && env -u SSH_KEY_OUTPUT_DIR "$SCRIPT" demo-noenv --dry-run ) >/dev/null 2>"$TMP/enoenv"
+assert_contains "$(cat "$TMP/enoenv")" "未配置输出目录" "未配置输出目录时有 stderr 提示"
+
+# 11. 传了 --out-dir 时不应出现该提示
+( cd "$TMP" && env -u SSH_KEY_OUTPUT_DIR "$SCRIPT" demo-od --out-dir "$TMP/od" --dry-run ) >/dev/null 2>"$TMP/eod"
+case "$(cat "$TMP/eod")" in *未配置输出目录*) bad "传了 --out-dir 不应提示未配置";; *) ok "传了 --out-dir 时不提示未配置";; esac
+
+# 12. 设了 SSH_KEY_OUTPUT_DIR 时不应出现该提示
+( cd "$TMP" && SSH_KEY_OUTPUT_DIR="$TMP/envdir" "$SCRIPT" demo-env --dry-run ) >/dev/null 2>"$TMP/eenv"
+case "$(cat "$TMP/eenv")" in *未配置输出目录*) bad "设了 SSH_KEY_OUTPUT_DIR 不应提示未配置";; *) ok "设了 SSH_KEY_OUTPUT_DIR 时不提示未配置";; esac
+
+# 13. 未配置提示走 stderr,不污染 stdout(dry-run 计划仍纯净)
+outnc="$( ( cd "$TMP" && env -u SSH_KEY_OUTPUT_DIR "$SCRIPT" demo-clean --dry-run ) 2>/dev/null )"
+case "$outnc" in *未配置输出目录*) bad "未配置提示不应进 stdout";; *) ok "未配置提示不污染 stdout";; esac
 
 echo "== Task2: ssh-keygen 路径 =="
 D2="$TMP/d2"

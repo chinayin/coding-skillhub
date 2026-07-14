@@ -1,7 +1,7 @@
 ---
 name: gen-ssh-key
 description: 'Generate SSH keys per team standards and return the public key. Ed25519 by default, RSA 4096 as fallback (RSA 2048 is never allowed). Prefers puttygen (produces .ppk/.pem/.pub); falls back to ssh-keygen (private key + .pub) when puttygen is absent. Filenames are prefixed with the service name/purpose; the private key is chmod 600. Use for: "generate ssh key", "generate ssh public/private key", "create an ssh keypair", "make a login key for service xxx". Generated keys default to the current directory (or the directory set in .env); what to do next (import into a platform / append to authorized_keys) is left to the caller.'
-version: 1.0.0
+version: 1.0.1
 tags: [ssh, keygen, ed25519, rsa, puttygen, security]
 ---
 
@@ -22,6 +22,7 @@ One command produces a standards-compliant SSH key. Pure bash; depends on puttyg
 ## Configuration
 
 Output directory precedence: `--out-dir` > `SSH_KEY_OUTPUT_DIR` in a sibling `.env` > current directory.
+When neither `--out-dir` nor `SSH_KEY_OUTPUT_DIR` is set, keys land in the current directory and a notice is printed to stderr.
 For first use, `cp .env.example .env` and point it at a central directory (e.g. `~/.ssh/team-keys`).
 
 ## Usage

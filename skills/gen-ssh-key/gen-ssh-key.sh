@@ -2,7 +2,7 @@
 # gen-ssh-key —— 按团队规则生成 SSH 密钥(Ed25519 默认 / RSA 4096 兜底;puttygen 优先,ssh-keygen 降级)
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die()  { echo "错误: $*" >&2; exit 1; }
@@ -64,7 +64,18 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
   # shellcheck disable=SC1091
   set -a; . "$SCRIPT_DIR/.env"; set +a
 fi
-if [ -z "$OUT_DIR" ]; then OUT_DIR="${SSH_KEY_OUTPUT_DIR:-.}"; fi
+# 输出目录优先级:--out-dir > .env 的 SSH_KEY_OUTPUT_DIR > 当前目录
+# 两者都未提供时明确提示,避免密钥被无声地生成到当前工作目录
+if [ -z "$OUT_DIR" ]; then
+  if [ -n "${SSH_KEY_OUTPUT_DIR:-}" ]; then
+    OUT_DIR="$SSH_KEY_OUTPUT_DIR"
+  else
+    OUT_DIR="."
+    warn "未配置输出目录,密钥将生成到当前目录"
+    echo "  $PWD" >&2
+    echo "提示: 可 cp .env.example .env 并设置 SSH_KEY_OUTPUT_DIR 指向集中目录。" >&2
+  fi
+fi
 OUT_DIR="${OUT_DIR/#\~/$HOME}"
 
 PPK="$OUT_DIR/$NAME.ppk"
