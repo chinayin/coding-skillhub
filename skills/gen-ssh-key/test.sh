@@ -68,7 +68,7 @@ else
   ok "python3 未安装,跳过 -v --json 合法性校验"
 fi
 
-# 10. 输出目录未配置(无 --out-dir 且无 SSH_KEY_OUTPUT_DIR):提示落当前目录
+# 10. 输出目录未配置(无 --out-dir 且无 SSH_KEY_OUTPUT_DIR):提示落默认 ~/.ssh/generated-keys
 #     用 dry-run 不落盘,并在 $TMP 内运行避免污染仓库目录
 ( cd "$TMP" && env -u SSH_KEY_OUTPUT_DIR "$SCRIPT" demo-noenv --dry-run ) >/dev/null 2>"$TMP/enoenv"
 assert_contains "$(cat "$TMP/enoenv")" "未配置输出目录" "未配置输出目录时有 stderr 提示"

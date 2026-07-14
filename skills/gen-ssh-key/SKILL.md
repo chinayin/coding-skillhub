@@ -21,8 +21,10 @@ permissions, overwrite guard), so using it is what guarantees compliance.
      a passphrase on the command line.
    - Machine-readable result wanted (or another program consumes it): add
      `--json` (pure JSON on stdout; diagnostics stay on stderr).
-   - The user named a destination: add `--out-dir <dir>`. Otherwise the
-     skill's `.env` (`SSH_KEY_OUTPUT_DIR`) or the current directory is used.
+   - The user named a destination: add `--out-dir <dir>` (this may be the
+     current directory, e.g. `--out-dir .`), and keys go straight there.
+     Otherwise, when neither `--out-dir` nor the skill's `.env`
+     (`SSH_KEY_OUTPUT_DIR`) is set, keys go to the default `~/.ssh/generated-keys`.
 3. Run the script from the skill directory:
 
    ```bash
@@ -62,9 +64,12 @@ retrying with `--force`.
 ## Configuration
 
 Output directory precedence: `--out-dir` > `SSH_KEY_OUTPUT_DIR` in `.env`
-(at the skill root, one level above `scripts/`) > current directory. For a
-persistent default, `cp .env.example .env` at the skill root and point it at
-a central directory such as `~/.ssh/generated-keys`.
+(at the skill root, one level above `scripts/`) > the built-in default
+`~/.ssh/generated-keys`. When both `--out-dir` and `.env` are absent, keys go
+to that default rather than the current directory (so they never silently land
+in the skill directory); pass `--out-dir .` if you do want the current
+directory. To change the default persistently, `cp .env.example .env` at the
+skill root and point `SSH_KEY_OUTPUT_DIR` elsewhere.
 
 ## Artifacts
 

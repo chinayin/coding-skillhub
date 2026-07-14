@@ -16,7 +16,7 @@ usage() {
   --rsa                   用 RSA 4096(默认 Ed25519;永不产 RSA 2048)
   --comment "..."         覆盖 -C 备注(默认 = <name>)
   --passphrase-file <f>   从文件读口令加密私钥(默认无口令)
-  --out-dir <dir>         输出目录(默认 .env 的 SSH_KEY_OUTPUT_DIR,再默认当前目录)
+  --out-dir <dir>         输出目录(默认 .env 的 SSH_KEY_OUTPUT_DIR,再默认 ~/.ssh/generated-keys)
   --tool puttygen|ssh-keygen  强制工具(默认 auto)
   --force                 覆盖同名密钥(默认拒绝)
   --json                  机器可读输出(纯 JSON 走 stdout)
@@ -62,16 +62,15 @@ if [ -f "$SKILL_DIR/.env" ]; then
   # shellcheck disable=SC1091
   set -a; . "$SKILL_DIR/.env"; set +a
 fi
-# 输出目录优先级:--out-dir > .env 的 SSH_KEY_OUTPUT_DIR > 当前目录
-# 两者都未提供时明确提示,避免密钥被无声地生成到当前工作目录
+# 输出目录优先级:--out-dir > .env 的 SSH_KEY_OUTPUT_DIR > 默认 ~/.ssh/generated-keys
+# 两者都未提供时不落当前目录(否则易落到技能目录或用户仓库),而是集中到默认目录
 if [ -z "$OUT_DIR" ]; then
   if [ -n "${SSH_KEY_OUTPUT_DIR:-}" ]; then
     OUT_DIR="$SSH_KEY_OUTPUT_DIR"
   else
-    OUT_DIR="."
-    warn "未配置输出目录,密钥将生成到当前目录"
-    echo "  $PWD" >&2
-    echo "提示: 可在技能根目录执行 cp .env.example .env($SKILL_DIR),并设置 SSH_KEY_OUTPUT_DIR 指向集中目录。" >&2
+    OUT_DIR="$HOME/.ssh/generated-keys"
+    warn "未配置输出目录,使用默认 $OUT_DIR"
+    echo "提示: 如需改默认,可在技能根目录执行 cp .env.example .env($SKILL_DIR),并设置 SSH_KEY_OUTPUT_DIR;或用 --out-dir . 显式落当前目录。" >&2
   fi
 fi
 OUT_DIR="${OUT_DIR/#\~/$HOME}"
