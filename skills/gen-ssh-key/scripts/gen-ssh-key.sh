@@ -2,8 +2,9 @@
 # gen-ssh-key —— 按团队规则生成 SSH 密钥(Ed25519 默认 / RSA 4096 兜底;puttygen 优先,ssh-keygen 降级)
 set -euo pipefail
 
-VERSION="1.0.1"
+VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"   # 技能根目录(.env 所在)
 
 die()  { echo "错误: $*" >&2; exit 1; }
 warn() { echo "警告: $*" >&2; }
@@ -59,10 +60,10 @@ vlog() { [ "$VERBOSE" -eq 1 ] && echo "verbose: $*" >&2 || true; }
 case "$NAME" in */*|*' '*) die "name 不能含 / 或空格: $NAME" ;; esac
 [ -n "$COMMENT" ] || COMMENT="$NAME"
 
-# 加载脚本同目录 .env(仅取 SSH_KEY_OUTPUT_DIR)
-if [ -f "$SCRIPT_DIR/.env" ]; then
+# 加载技能根目录 .env(仅取 SSH_KEY_OUTPUT_DIR)
+if [ -f "$SKILL_DIR/.env" ]; then
   # shellcheck disable=SC1091
-  set -a; . "$SCRIPT_DIR/.env"; set +a
+  set -a; . "$SKILL_DIR/.env"; set +a
 fi
 # 输出目录优先级:--out-dir > .env 的 SSH_KEY_OUTPUT_DIR > 当前目录
 # 两者都未提供时明确提示,避免密钥被无声地生成到当前工作目录
@@ -73,7 +74,7 @@ if [ -z "$OUT_DIR" ]; then
     OUT_DIR="."
     warn "未配置输出目录,密钥将生成到当前目录"
     echo "  $PWD" >&2
-    echo "提示: 可 cp .env.example .env 并设置 SSH_KEY_OUTPUT_DIR 指向集中目录。" >&2
+    echo "提示: 可在技能根目录执行 cp .env.example .env($SKILL_DIR),并设置 SSH_KEY_OUTPUT_DIR 指向集中目录。" >&2
   fi
 fi
 OUT_DIR="${OUT_DIR/#\~/$HOME}"
@@ -102,7 +103,7 @@ fi
 
 vlog "工具=$RESOLVED_TOOL 类型=$KEY_TYPE 备注=$COMMENT"
 vlog "输出目录=$OUT_DIR"
-[ -f "$SCRIPT_DIR/.env" ] && vlog "已加载配置: $SCRIPT_DIR/.env" || true
+[ -f "$SKILL_DIR/.env" ] && vlog "已加载配置: $SKILL_DIR/.env" || true
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "tool=$RESOLVED_TOOL"

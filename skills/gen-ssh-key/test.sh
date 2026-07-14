@@ -3,7 +3,7 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT="$HERE/gen-ssh-key.sh"
+SCRIPT="$HERE/scripts/gen-ssh-key.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -17,10 +17,10 @@ assert_no_file() { [ ! -e "$1" ] && ok "$2" || bad "$2 (文件不应存在: $1)"
 assert_code() { # <actual> <expected> <msg>
   [ "$1" = "$2" ] && ok "$3" || bad "$3 (退出码 $1,期望 $2)"; }
 
-echo "== Task1: CLI 骨架 =="
+echo "== CLI 骨架 =="
 
 # 1. --version
-out="$("$SCRIPT" --version)"; assert_contains "$out" "1.0.1" "--version 打印版本号"
+out="$("$SCRIPT" --version)"; assert_contains "$out" "1.1.0" "--version 打印版本号"
 
 # 2. --help
 out="$("$SCRIPT" --help)"; assert_contains "$out" "用法" "--help 打印用法"
@@ -83,7 +83,19 @@ case "$(cat "$TMP/eenv")" in *未配置输出目录*) bad "设了 SSH_KEY_OUTPUT
 outnc="$( ( cd "$TMP" && env -u SSH_KEY_OUTPUT_DIR "$SCRIPT" demo-clean --dry-run ) 2>/dev/null )"
 case "$outnc" in *未配置输出目录*) bad "未配置提示不应进 stdout";; *) ok "未配置提示不污染 stdout";; esac
 
-echo "== Task2: ssh-keygen 路径 =="
+echo "== .env 从技能根目录读取 =="
+# 复制一份技能目录(scripts/ + .env.example)到临时目录,避免污染仓库内真实 .env
+SKILLCOPY="$TMP/skillcopy"
+mkdir -p "$SKILLCOPY/scripts"
+cp "$HERE/scripts/gen-ssh-key.sh" "$SKILLCOPY/scripts/gen-ssh-key.sh"
+cp "$HERE/.env.example" "$SKILLCOPY/.env.example"
+ENVDIR="$TMP/envcfg-outdir"
+printf 'SSH_KEY_OUTPUT_DIR=%s\n' "$ENVDIR" > "$SKILLCOPY/.env"
+
+out="$( env -u SSH_KEY_OUTPUT_DIR "$SKILLCOPY/scripts/gen-ssh-key.sh" demo-rootenv --dry-run )"
+assert_contains "$out" "outdir=$ENVDIR" ".env 从技能根目录(scripts/ 上一级)被正确读取"
+
+echo "== ssh-keygen 路径 =="
 D2="$TMP/d2"
 
 # ed25519 默认(强制 ssh-keygen)
@@ -136,7 +148,7 @@ else
   ok "python3 未安装,跳过 json 合法性校验"
 fi
 
-echo "== Task3: puttygen 路径 =="
+echo "== puttygen 路径 =="
 if command -v puttygen >/dev/null 2>&1; then
   D3="$TMP/d3"
   "$SCRIPT" svc-pg --tool puttygen --out-dir "$D3" >/dev/null 2>&1
@@ -162,7 +174,7 @@ if command -v puttygen >/dev/null 2>&1; then
   set +e; ssh-keygen -y -P "pg-pass" -f "$D3/svc-pgp.pem" >/dev/null 2>&1; pgok=$?; set -e
   assert_code "$pgok" "0" "puttygen 路径:正确口令可解密"
 else
-  ok "puttygen 未安装,跳过 Task3(降级路径已由 Task2 覆盖)"
+  ok "puttygen 未安装,跳过 puttygen 路径(降级路径已由 ssh-keygen 路径覆盖)"
 fi
 
 echo ""; echo "结果: PASS=$PASS FAIL=$FAIL"
