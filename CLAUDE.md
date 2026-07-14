@@ -11,8 +11,14 @@
 ### 目录结构
 
 - 每个技能位于 `skills/<name>/`,目录名即技能名(kebab-case)。
-- 至少包含 `SKILL.md`。带脚本的技能同目录附带:可执行脚本、`test.sh` 自测、`.env.example`(如需配置)。
-- 本地文件不入库:`.env`(实际配置)、`docs/`(设计/计划/交接文档)已在 `.gitignore` 中忽略,不要提交。
+- 至少包含 `SKILL.md`。目录布局对齐官方 skill anatomy(渐进式披露):
+  - `scripts/` — 可执行脚本(运行时资源,SKILL.md 中以 `scripts/<file>` 相对路径引用)。
+  - `references/` — 按需加载的重文档(仅在内容超出 SKILL.md 承载时才建)。
+  - `assets/` — 输出用模板/素材(按需)。
+  - `test.sh` — 开发期自测,保留在技能根目录(非运行时资源)。
+  - `evals/evals.json` — Agent 行为级评测用例(回归测试集,入库)。
+  - `.env.example` — 配置样例(如需配置),放技能根目录。
+- 本地文件不入库:`.env`(实际配置)、`docs/`(设计/计划/交接文档)、skill-creator 评测运行产物 `<skill>-workspace/` 已在 `.gitignore` 中忽略,不要提交。
 
 ### SKILL.md
 
@@ -46,7 +52,24 @@
 - **标准开关**:机器可读输出用 `--json`;可预览用 `--dry-run`;`-v/--verbose` 开诊断;`--` 结束选项解析;`--version`、`-h/--help`。Flag 用 kebab-case,bool flag 不带值,高频项才配短选项。
 - **退出码**:有明确语义并在 SKILL.md 记录(如 `0` 成功 / `1` 用法或运行错误 / `2` 前置条件不满足)。
 
-## 三、提交前检查
+## 三、技能创建与迭代工作流(基于官方 skill-creator)
+
+新建技能或对现有技能做大改时,用本地安装的 **skill-creator** 技能(`~/.claude/skills/skill-creator`)驱动流程:
+
+1. **需求访谈**:明确技能做什么、何时触发、期望输出、是否需要可客观校验的测试用例。
+2. **写草稿**:遵循本文件第一、二节的仓库规范。
+3. **评测迭代**:写 2-3 个真实测试 prompt 存入 `evals/evals.json`;用 skill-creator 跑「带技能 vs 不带技能」对照评测,依据反馈迭代 SKILL.md。
+4. **触发优化**:定稿后可用 `scripts/improve_description.py` 优化 description 的触发准确率。
+5. **提交前**:跑 `scripts/quick_validate.py` 校验结构,再走本文件第四节检查清单。
+
+本仓覆盖项(与 skill-creator 官方指导冲突处,以本节为准):
+
+- frontmatter 保留 `version`/`tags`(`npx skills` 分发需要),不按官方规范删除。
+- 脚本语言默认 bash(见第二节),不强制 python3;目标平台为 macOS/Linux,不做 Windows 兼容。
+- `evals/evals.json`(用例定义)入库;评测运行产物 `<skill>-workspace/`(iteration-N 输出)不入库。
+- SKILL.md 控制在 500 行内,超出时下沉到 `references/` 并在正文给出何时读取的指引。
+
+## 四、提交前检查
 
 1. `bash skills/<name>/test.sh` 全绿。
 2. frontmatter `version` 与脚本版本号一致。
