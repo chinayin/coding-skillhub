@@ -36,7 +36,7 @@ Extract the `tag_name` field from the returned JSON — that is the latest versi
 
 Example: Query latest version of `docker/login-action`:
 - fetch `https://api.github.com/repos/docker/login-action/releases/latest`
-- Read `"tag_name": "v4.2.0"` from response → major version is `@v4`
+- Read `"tag_name": "v4.2.0"` from response -> major version is `@v4`
 
 ### Fetch the API for each action individually. Do NOT skip any. Do NOT substitute with web search.
 
