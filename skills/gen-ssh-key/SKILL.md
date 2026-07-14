@@ -1,43 +1,70 @@
 ---
 name: gen-ssh-key
-description: 'Generate SSH keys per team standards and return the public key. Ed25519 by default, RSA 4096 as fallback (RSA 2048 is never allowed). Prefers puttygen (produces .ppk/.pem/.pub); falls back to ssh-keygen (private key + .pub) when puttygen is absent. Filenames are prefixed with the service name/purpose; the private key is chmod 600. Use for: "generate ssh key", "generate ssh public/private key", "create an ssh keypair", "make a login key for service xxx". Generated keys default to the current directory (or the directory set in .env); what to do next (import into a platform / append to authorized_keys) is left to the caller.'
+description: 'Generate SSH keys per team standards and return the public key. Ed25519 by default, RSA 4096 as fallback (RSA 2048 is never allowed); private keys are chmod 600 and named after the service. Use this skill whenever the user wants an SSH key, keypair, deploy key, or login key for a service or machine, or mentions ssh-keygen/puttygen — e.g. "generate ssh key", "create an ssh keypair", "make a login key for service xxx", "generate a deploy key" — even if they do not mention team standards. Prefers puttygen (.ppk/.pem/.pub); falls back to ssh-keygen.'
 ---
 
 # Generate SSH Keys (Team Standard)
 
-One command produces a standards-compliant SSH key. Pure bash; depends on puttygen or ssh-keygen.
+Run one script to produce a standards-compliant SSH key; do not hand-roll
+ssh-keygen commands. The script bakes in the team rules (key type, naming,
+permissions, overwrite guard), so using it is what guarantees compliance.
 
-## Team Rules (baked into the script)
+## Workflow
 
-- Key type: **Ed25519** by default; `--rsa` uses **RSA 4096**; **RSA 2048 is never generated**.
-- Tool: prefers **puttygen** (produces `.ppk/.pem/.pub`); falls back to **ssh-keygen** (private key + `.pub`, no `.ppk`) when puttygen is absent.
-- Filename: `<name>.ppk / .pem / .pub`, where `<name>` = service name/purpose.
-- Comment `-C`: defaults to `<name>`.
-- Passphrase: none by default, with a strong reminder; `--passphrase-file` encrypts the key.
-- Overwrite: existing keys with the same name are refused by default; use `--force`.
-- Permissions: private key is `chmod 600`.
+1. Derive `<name>` from the service or purpose the user mentions
+   (e.g. "jumpserver", "gitlab"). Kebab-case; no spaces or slashes.
+2. Pick flags from the request:
+   - RSA explicitly requested: add `--rsa` (always RSA 4096; the script
+     refuses to produce RSA 2048, which the team bans as too weak).
+   - Passphrase wanted: write the passphrase to a temporary file, pass
+     `--passphrase-file <file>`, and delete the file afterwards. Never put
+     a passphrase on the command line.
+   - Machine-readable result wanted (or another program consumes it): add
+     `--json` (pure JSON on stdout; diagnostics stay on stderr).
+   - The user named a destination: add `--out-dir <dir>`. Otherwise the
+     skill's `.env` (`SSH_KEY_OUTPUT_DIR`) or the current directory is used.
+3. Run the script from the skill directory:
 
-## Configuration
+   ```bash
+   ./scripts/gen-ssh-key.sh <name> [flags]
+   ```
 
-Output directory precedence: `--out-dir` > `SSH_KEY_OUTPUT_DIR` in `.env` (at the skill root, one level above `scripts/`) > current directory.
-When neither `--out-dir` nor `SSH_KEY_OUTPUT_DIR` is set, keys land in the current directory and a notice is printed to stderr.
-For first use, `cp .env.example .env` at the skill root and point it at a central directory (e.g. `~/.ssh/team-keys`).
+4. Report back: give the user the public key content (it is safe to share)
+   and the file paths. Never print, quote, or transmit the private key
+   contents, and never write the passphrase into results or logs — the JSON
+   output intentionally carries only `passphrase_protected: true`.
 
-## Usage
+If the target files already exist the script refuses; ask the user before
+retrying with `--force`.
+
+## Examples
 
 ```bash
 ./scripts/gen-ssh-key.sh jumpserver                       # Ed25519 -> jumpserver.{ppk,pem,pub}
-./scripts/gen-ssh-key.sh jumpserver --rsa                 # RSA 4096
-./scripts/gen-ssh-key.sh jumpserver --comment "you@example.com"
-./scripts/gen-ssh-key.sh jumpserver --passphrase-file ./pp.txt   # encrypt the private key
+./scripts/gen-ssh-key.sh gitlab --rsa                     # RSA 4096
+./scripts/gen-ssh-key.sh svc-x --passphrase-file ./pp.txt --json
 ./scripts/gen-ssh-key.sh jumpserver --out-dir ~/.ssh/team-keys
-./scripts/gen-ssh-key.sh jumpserver --force               # overwrite same-name keys
-./scripts/gen-ssh-key.sh jumpserver --json                # machine-readable output (pure JSON on stdout)
+./scripts/gen-ssh-key.sh jumpserver --comment "you@example.com"
 ./scripts/gen-ssh-key.sh jumpserver --dry-run             # show the plan only
-./scripts/gen-ssh-key.sh jumpserver -v                    # verbose diagnostics on stderr
-./scripts/gen-ssh-key.sh --tool ssh-keygen jumpserver     # force ssh-keygen (skip puttygen)
-./scripts/gen-ssh-key.sh -h                               # help
+./scripts/gen-ssh-key.sh --tool ssh-keygen jumpserver     # skip puttygen
+./scripts/gen-ssh-key.sh -h                               # full flag reference
 ```
+
+## Team rules baked into the script
+
+- Key type: Ed25519 by default; `--rsa` means RSA 4096; RSA 2048 never.
+- Tool: puttygen preferred (adds `.ppk` for PuTTY users); ssh-keygen fallback.
+- Naming: `<name>.ppk / .pem / .pub` so keys are identifiable by service.
+- Comment `-C` defaults to `<name>`; override with `--comment`.
+- Private key `chmod 600`; newly created output directories `chmod 700`.
+- Overwrite refused by default; `--force` required.
+
+## Configuration
+
+Output directory precedence: `--out-dir` > `SSH_KEY_OUTPUT_DIR` in `.env`
+(at the skill root, one level above `scripts/`) > current directory. For a
+persistent default, `cp .env.example .env` at the skill root and point it at
+a central directory such as `~/.ssh/team-keys`.
 
 ## Artifacts
 
@@ -45,11 +72,12 @@ For first use, `cp .env.example .env` at the skill root and point it at a centra
 |------|---------|
 | `<name>.ppk` | PuTTY-native key (puttygen path only) |
 | `<name>.pem` | OpenSSH private key (chmod 600, keep secret) |
-| `<name>.pub` | OpenSSH public key (copy to import / append to authorized_keys) |
+| `<name>.pub` | OpenSSH public key (share this; import / authorized_keys) |
 
-## Exit Codes
+## Exit codes
 
-`0` success; `1` bad argument / target already exists / generation failed (the underlying tool's own non-zero code when it errors); `2` no usable tool (neither puttygen nor ssh-keygen found).
+`0` success; `1` bad argument, target exists, or generation failed; `2` no
+usable tool (neither puttygen nor ssh-keygen installed).
 
 ## Self-test
 
