@@ -15,8 +15,8 @@
   - `scripts/` — 可执行脚本(运行时资源,SKILL.md 中以 `scripts/<file>` 相对路径引用)。
   - `references/` — 按需加载的重文档(仅在内容超出 SKILL.md 承载时才建)。
   - `assets/` — 输出用模板/素材(按需)。
-  - `test.sh` — 开发期自测,保留在技能根目录(非运行时资源)。
   - `evals/evals.json` — Agent 行为级评测用例(回归测试集,入库)。
+  - `test.sh` — **可选**的开发期脚本自测,放技能根目录(非运行时资源)。官方 anatomy 无此项且官方技能均不带测试;仅当脚本是纯本地确定性逻辑、单测成本低时才值得写(如 gen-ssh-key),依赖网络/外部服务的脚本不必强行 mock。
   - `.env.example` — 配置样例(如需配置),放技能根目录。
 - 本地文件不入库:`.env`(实际配置)、`docs/`(设计/计划/交接文档)、skill-creator 评测运行产物 `<skill>-workspace/` 已在 `.gitignore` 中忽略,不要提交。
 
@@ -40,7 +40,7 @@
 - 涉及密钥/凭据的产物按最小权限处理(如私钥 `chmod 600`)。
 - 破坏性操作(覆盖、删除)默认拒绝,提供显式 `--force` 等开关。
 - 脚本注释用中文(团队/个人偏好),但**用户可见的帮助文本以 SKILL.md 为准**。
-- 每个带脚本的技能必须有 `test.sh`:写入临时目录、跑完清理、以 `PASS/FAIL` 汇总并用退出码反映结果。**改脚本必须同步改测试并跑绿**。
+- `test.sh` 不做强制(2026-07 对齐官方后降级为可选,见第一节)。若写:写入临时目录、跑完清理、以 `PASS/FAIL` 汇总并用退出码反映结果;**改脚本必须同步改测试并跑绿**。技能的正规验证渠道是 skill-creator 评测(见第三节)。
 
 ### CLI 约定(参照 cargo / git / gh / docker / kubectl 与 clig.dev)
 
@@ -66,12 +66,12 @@
 
 - frontmatter 只保留 `name`/`description`(不加 `version`/`tags`,见第一节)。
 - 脚本语言默认 bash(见第二节),不强制 python3;目标平台为 macOS/Linux,不做 Windows 兼容。
-- `evals/evals.json`(用例定义)入库;评测运行产物 `<skill>-workspace/`(iteration-N 输出)不入库。
+- `evals/evals.json`(用例定义)入库;评测运行产物 `<skill>-workspace/`(iteration-N 输出)不入库。(官方技能仓库不随技能携带 evals;本仓有意入库作为回归用例集,属对官方的最小扩展。)
 - SKILL.md 控制在 500 行内,超出时下沉到 `references/` 并在正文给出何时读取的指引。
 
 ## 四、提交前检查
 
-1. `bash skills/<name>/test.sh` 全绿。
+1. 跑 skill-creator 的 `scripts/quick_validate.py` 校验结构;行为改动跑 evals 对照评测确认无回归。若技能自带 `test.sh`(可选),也须跑绿。
 2. frontmatter 只含 `name`/`description`,`name` 与目录名一致。
 3. 新增/改名技能后同步更新 `README.md` 的技能列表与目录结构、`USAGE.md`(如涉及)。
 4. git 提交信息用中文(约定式前缀 `feat:`/`fix:`/`docs:`/`chore:` 保留英文)。
