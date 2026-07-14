@@ -19,8 +19,10 @@ assert_code() { # <actual> <expected> <msg>
 
 echo "== CLI 骨架 =="
 
-# 1. --version
-out="$("$SCRIPT" --version)"; assert_contains "$out" "1.1.0" "--version 打印版本号"
+# 1. 未知选项应拒绝(--version 已随版本概念移除,同样落入此分支)
+set +e; "$SCRIPT" demo --nope >/dev/null 2>"$TMP/eunk"; cu=$?; set -e
+assert_code "$cu" "1" "未知选项退出码 1"
+assert_contains "$(cat "$TMP/eunk")" "未知选项" "未知选项有提示"
 
 # 2. --help
 out="$("$SCRIPT" --help)"; assert_contains "$out" "用法" "--help 打印用法"

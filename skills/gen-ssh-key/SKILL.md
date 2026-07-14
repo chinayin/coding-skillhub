@@ -37,7 +37,6 @@ For first use, `cp .env.example .env` at the skill root and point it at a centra
 ./scripts/gen-ssh-key.sh jumpserver --dry-run             # show the plan only
 ./scripts/gen-ssh-key.sh jumpserver -v                    # verbose diagnostics on stderr
 ./scripts/gen-ssh-key.sh --tool ssh-keygen jumpserver     # force ssh-keygen (skip puttygen)
-./scripts/gen-ssh-key.sh --version                        # version
 ./scripts/gen-ssh-key.sh -h                               # help
 ```
 

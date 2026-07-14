@@ -28,7 +28,7 @@
 - `name` 必须与目录名一致。
 - `description` 决定 Agent 何时触发本技能,要写清**做什么** + **典型触发语句**(用引号列举用户可能的说法)。
 - **语言:SKILL.md 正文与 frontmatter 一律用英文**(面向公开分发,统一风格、最大化受众与触发稳定性)。这是唯一例外于个人「中文优先」偏好的地方,仅限 `SKILL.md`。
-- 脚本自身保留 `VERSION=` 与 `--version`(CLI 约定),与 SKILL frontmatter 解耦,按脚本实际变更自行演进。
+- 脚本不带版本号:不定义 `VERSION=`、不实现 `--version`(技能无版本概念,无人 bump 的版本号只会变成过期的假信号;演进历史由 git 记录)。
 
 ## 二、shell / CLI 脚本编写规范
 
@@ -50,7 +50,7 @@
 - **默认不打日志级别标签**:非 verbose 模式不要输出 `ERR/WARN/INFO/DEBUG` 之类标签或多余上下文(clig.dev)。啰嗦诊断放到 `-v/--verbose`,且只打 stderr。
 - **不使用颜色**:技能由 Agent 调用,颜色无意义,一律纯文本(也就无需处理 `NO_COLOR`/TTY 检测)。
 - **禁 emoji / 装饰符号**(见「全项目硬规范」)。
-- **标准开关**:机器可读输出用 `--json`;可预览用 `--dry-run`;`-v/--verbose` 开诊断;`--` 结束选项解析;`--version`、`-h/--help`。Flag 用 kebab-case,bool flag 不带值,高频项才配短选项。
+- **标准开关**:机器可读输出用 `--json`;可预览用 `--dry-run`;`-v/--verbose` 开诊断;`--` 结束选项解析;`-h/--help`。Flag 用 kebab-case,bool flag 不带值,高频项才配短选项。本仓特例:不实现 `--version`(技能无版本概念,见第一节;此处有意偏离团队 shell 规范)。
 - **退出码**:有明确语义并在 SKILL.md 记录(如 `0` 成功 / `1` 用法或运行错误 / `2` 前置条件不满足)。
 
 ## 三、技能创建与迭代工作流(基于官方 skill-creator)

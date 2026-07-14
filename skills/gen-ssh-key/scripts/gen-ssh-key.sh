@@ -2,7 +2,6 @@
 # gen-ssh-key —— 按团队规则生成 SSH 密钥(Ed25519 默认 / RSA 4096 兜底;puttygen 优先,ssh-keygen 降级)
 set -euo pipefail
 
-VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"   # 技能根目录(.env 所在)
 
@@ -24,7 +23,6 @@ usage() {
   --dry-run               仅打印计划,不生成
   -v, --verbose           打印诊断过程到 stderr(不污染 stdout)
   --                      结束选项解析(其后一律当作 <name>)
-  --version               打印版本
   -h, --help              帮助
 EOF
 }
@@ -45,7 +43,6 @@ while [ $# -gt 0 ]; do
     --json) JSON=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -v|--verbose) VERBOSE=1; shift ;;
-    --version) echo "$VERSION"; exit 0 ;;
     -h|--help) usage; exit 0 ;;
     --) shift; while [ $# -gt 0 ]; do set_name "$1"; shift; done ;;
     -*) usage >&2; die "未知选项: $1" ;;
