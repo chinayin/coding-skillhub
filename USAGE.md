@@ -4,7 +4,7 @@
 
 技能是一份 Markdown 文件（`SKILL.md`），包含：
 
-- YAML frontmatter（name、description、version、tags）
+- YAML frontmatter（name、description、tags）
 - 操作流程和步骤
 - 完整可用的示例
 - 注意事项和常见问题
