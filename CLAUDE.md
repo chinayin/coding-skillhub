@@ -22,9 +22,8 @@
 
 ### SKILL.md
 
-- **frontmatter 必备字段**:`name`、`description`、`tags`(数组)。
-  - **不加 `version`**:对齐官方 SKILL frontmatter(官方技能均不带版本号)。经核实,分发工具 `npx skills`(vercel-labs)也只要求 `name`/`description`,更新基于 git 而非 frontmatter 版本号;技能的演进历史由 git 记录。(2026-07 决定;此前「frontmatter version 并与脚本版本号同步」的旧规已废止,存量技能的 version 字段已移除。)
-  - `tags` 保留用于人工浏览/分类(非官方字段,`npx skills` 亦不要求,但无害)。(对比:团队 `gox-code-rules` 插件走 Claude Code 插件体系,版本在 `plugin.json`。)
+- **frontmatter 只有两个字段**:`name`、`description`,对齐官方极简规范。
+  - **不加 `version`/`tags`**:经核实,分发工具 `npx skills`(vercel-labs)只要求 `name`/`description`,更新基于 git 而非 frontmatter 版本号;技能的演进历史由 git 记录,分类浏览由 README 技能列表承担。(2026-07 决定;此前「frontmatter 带 version/tags 且 version 与脚本同步」的旧规已废止,存量技能已清理。)
 - `name` 必须与目录名一致。
 - `description` 决定 Agent 何时触发本技能,要写清**做什么** + **典型触发语句**(用引号列举用户可能的说法)。
 - **语言:SKILL.md 正文与 frontmatter 一律用英文**(面向公开分发,统一风格、最大化受众与触发稳定性)。这是唯一例外于个人「中文优先」偏好的地方,仅限 `SKILL.md`。
@@ -65,7 +64,7 @@
 
 本仓覆盖项(与 skill-creator 官方指导冲突处,以本节为准):
 
-- frontmatter 保留 `tags`(人工浏览/分类用);不加 `version`(见第一节)。
+- frontmatter 只保留 `name`/`description`(不加 `version`/`tags`,见第一节)。
 - 脚本语言默认 bash(见第二节),不强制 python3;目标平台为 macOS/Linux,不做 Windows 兼容。
 - `evals/evals.json`(用例定义)入库;评测运行产物 `<skill>-workspace/`(iteration-N 输出)不入库。
 - SKILL.md 控制在 500 行内,超出时下沉到 `references/` 并在正文给出何时读取的指引。
@@ -73,6 +72,6 @@
 ## 四、提交前检查
 
 1. `bash skills/<name>/test.sh` 全绿。
-2. frontmatter 不含 `version`;必备字段 `name`/`description`/`tags` 齐全,`name` 与目录名一致。
+2. frontmatter 只含 `name`/`description`,`name` 与目录名一致。
 3. 新增/改名技能后同步更新 `README.md` 的技能列表与目录结构、`USAGE.md`(如涉及)。
 4. git 提交信息用中文(约定式前缀 `feat:`/`fix:`/`docs:`/`chore:` 保留英文)。

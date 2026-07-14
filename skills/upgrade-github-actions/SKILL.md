@@ -1,7 +1,6 @@
 ---
 name: upgrade-github-actions
 description: Scan and upgrade all GitHub Actions in a project to their latest major versions, confirmed via GitHub API
-tags: [github-actions, ci, upgrade, workflow, dependabot]
 ---
 
 # Upgrade GitHub Actions
