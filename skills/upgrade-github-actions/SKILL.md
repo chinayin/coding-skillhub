@@ -1,68 +1,81 @@
 ---
 name: upgrade-github-actions
-description: Scan and upgrade all GitHub Actions in a project to their latest major versions, confirmed via GitHub API
+description: 'Scan a repository''s workflow files and upgrade every GitHub Action to its latest major version, verified live against the GitHub API instead of memory or web search. Use this skill whenever the user wants to upgrade, bump, audit, or check GitHub Actions versions — e.g. "upgrade github actions", "bump actions to latest", "are my workflow actions outdated", "update actions/checkout in my CI" — even for a single action or a quick check.'
 ---
 
 # Upgrade GitHub Actions
 
-When the user asks to upgrade GitHub Actions, follow this workflow:
+The bundled script does the read-only discovery: it scans workflow files,
+queries the GitHub API for each action's latest version, and prints a
+comparison. Editing files, judging breaking changes, and committing stay
+with you — those need judgment, not automation.
+
+Never determine action versions from memory or web search. Model knowledge
+is frozen at training time and search results are heavily cached; both
+routinely report versions that are one or two majors behind. The script
+exists precisely to replace that guesswork with a live API answer.
 
 ## Workflow
 
-1. **Scan workflow files**: Find all `.yml`/`.yaml` files under `.github/workflows/`
-2. **Extract current action versions**: Identify all `uses:` references and their version tags (including third-party actions)
-3. **Query latest versions**: Use the GitHub API to confirm each action's latest version (see "Version Query Method" below)
-4. **Compare differences**: List actions that need upgrading in this format:
+1. Run the script from the skill directory (read-only, safe to run first):
 
-| File | Action | Current Version | Latest Version | Notes |
-|------|--------|----------------|----------------|-------|
+   ```bash
+   ./scripts/check-actions.sh --dir <repo-root>          # human-readable table
+   ./scripts/check-actions.sh --dir <repo-root> --json   # machine-readable
+   ```
 
-5. **Batch update after confirmation**: Once the user confirms, modify all workflow files
-6. **Validate**: Check workflow file syntax (indentation, quotes, etc.)
-7. **Commit and push**: Commit message format: `chore: bump github actions (<brief action list>)`
+2. Present the comparison to the user: which actions are outdated, current
+   vs latest version, and which files reference them. If everything is
+   up to date, say so and stop.
 
-## Version Query Method (Critical)
+3. Wait for the user to confirm before modifying any workflow file.
 
-**You MUST use the GitHub API. Do NOT rely on web search to determine versions.** Web search results have severe caching issues and return outdated data, leading to incorrect version judgments.
+4. Apply the upgrades:
+   - Use major version tags (`@v5`), not full versions (`@v5.1.0`), so
+     minor and patch updates arrive automatically.
+   - Keep versions consistent: the same action should use the same version
+     across all workflow files in the repository.
+   - Before bumping a major version, skim the release notes for breaking
+     changes (`gh api repos/<owner>/<repo>/releases/latest --jq .body`)
+     and surface anything relevant to the user.
 
-### The only authoritative method: fetch GitHub Releases API
+5. Validate the edited files: run `actionlint` if available, otherwise
+   review the diff carefully (indentation, quoting).
 
-```
-https://api.github.com/repos/{owner}/{repo}/releases/latest
-```
+6. Offer to commit with message `chore: bump github actions (<brief list>)`.
+   Commit and push only after the user agrees. If dependabot or renovate
+   has open PRs for the same bumps, point them out so the user can close
+   them. Suggest watching the next CI run to catch breaking changes.
 
-Extract the `tag_name` field from the returned JSON — that is the latest version.
+## Reading the script output
 
-Example: Query latest version of `docker/login-action`:
-- fetch `https://api.github.com/repos/docker/login-action/releases/latest`
-- Read `"tag_name": "v4.2.0"` from response -> major version is `@v4`
+Each unique (action, version) pair gets a STATUS:
 
-### Fetch the API for each action individually. Do NOT skip any. Do NOT substitute with web search.
+- `outdated` — a newer major version exists; candidate for upgrade.
+- `up-to-date` — current major matches the latest.
+- `sha-pinned` — pinned to a full commit SHA, usually a deliberate security
+  choice. Do not silently replace it with a mutable tag. Ask the user; if
+  they want to stay SHA-pinned, update to the commit SHA of the latest
+  release instead.
+- `unknown` — the version could not be compared (branch ref, or the API
+  query failed). Investigate manually.
 
-## Common Docker-Related Actions Version Reference
+Local actions (`./path`) and Docker images (`docker://...`) are excluded —
+they have no GitHub version to compare.
 
-> **Last verified via API: May 2026**
+## How the script queries versions
 
-- `actions/checkout@v6`
-- `docker/setup-qemu-action@v4`
-- `docker/setup-buildx-action@v4`
-- `docker/login-action@v4`
-- `docker/bake-action@v7`
-- `docker/build-push-action@v7`
-- `peter-evans/dockerhub-description@v5`
+For each unique action repository it fetches
+`repos/{owner}/{repo}/releases/latest` and reads `tag_name`; repositories
+that only tag without publishing releases fall back to the tags list
+(marked `latest_source: tag` in JSON output). It prefers an authenticated
+`gh` CLI when available; otherwise it uses curl, where an unauthenticated
+client is limited to 60 API calls per hour — set `GITHUB_TOKEN` if the
+repository references many actions.
 
-> If versions differ from the above, an upgrade is needed. When performing upgrades, you MUST verify via API whether a newer major version exists — do not rely solely on this table.
+## Exit codes
 
-## Important Notes
-
-- Use major version tags (e.g., `@v4`) rather than full version numbers (e.g., `@v4.1.0`), so minor/patch updates are received automatically
-- Before upgrading a major version, quickly check for breaking changes (look at the `body` field in release notes)
-- Docker-related actions (docker/*) typically release new major versions in sync — if one gets a major bump, others likely do too
-- If the project has dependabot/renovate configured and related PRs exist, close those PRs after upgrading
-- All workflow files in the same repository should use consistent action versions
-- After upgrading, observe one CI run to confirm no breaking changes
-
-## Security Recommendations
-
-- When upgrading, check for permission changes in actions (especially `permissions`-related)
-- Monitor GitHub official security advisories and promptly upgrade action versions with known vulnerabilities
+`0` scan and query completed (regardless of whether upgrades are needed);
+`1` usage or runtime error (including exhausted API rate limit);
+`2` precondition failed (no `.github/workflows/` directory, or neither
+`gh` nor `curl` available).

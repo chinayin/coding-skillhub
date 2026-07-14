@@ -1,0 +1,48 @@
+{
+  "skill_name": "upgrade-github-actions",
+  "note": "Fixtures live in evals/fixtures/ (a fake repo with intentionally outdated action pins). Latest versions are a moving target, so expectations assert behavior and structure (queried the live API, correct edit scope) rather than specific version numbers. Graders should query the GitHub API themselves to know today's ground truth.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "audit-only-no-modification",
+      "prompt": "帮我看看这个项目的 github actions 有没有过时的,列出来,先别改",
+      "expected_output": "A read-only audit. The agent determines each action's latest version via the GitHub API (script or direct API calls, never memory/web search) and presents a comparison covering every remote action (actions/checkout, actions/setup-node, docker/login-action, softprops/action-gh-release) with current and latest versions. No workflow file is modified. Local ./local-action and docker://alpine are not reported as upgradable GitHub Actions.",
+      "files": ["evals/fixtures/.github/workflows/ci.yml", "evals/fixtures/.github/workflows/release.yaml"],
+      "expectations": [
+        "No workflow file under .github/workflows/ is modified (byte-identical to the fixture)",
+        "The final response lists all four remote actions with both their current version and a latest version",
+        "The reported latest versions match today's GitHub API ground truth (releases/latest tag_name), not stale memory values",
+        "The local action (./local-action) and docker image (docker://alpine:3.19) are not presented as upgradable GitHub Actions",
+        "The SHA-pinned softprops/action-gh-release is flagged as SHA-pinned or otherwise distinguished from normal tag pins"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "full-upgrade-with-authorization",
+      "prompt": "upgrade all github actions in this repo to their latest major versions, you have my approval to edit the workflow files directly (leave the sha-pinned one as is, just tell me about it)",
+      "expected_output": "The agent verifies latest versions via the GitHub API, then edits ci.yml and release.yaml: actions/checkout, actions/setup-node, and docker/login-action are bumped to their latest major tag in @vN form (not full @vN.x.y). The same action uses the same version in both files. The local ./local-action, docker://alpine reference, and the SHA-pinned softprops/action-gh-release are left untouched, with the SHA-pinned one mentioned in the response. YAML structure (with: blocks, indentation) remains valid.",
+      "files": ["evals/fixtures/.github/workflows/ci.yml", "evals/fixtures/.github/workflows/release.yaml"],
+      "expectations": [
+        "actions/checkout, actions/setup-node, and docker/login-action are updated in the workflow files to today's latest major version per the GitHub API",
+        "Upgraded references use major tag form @vN, not a full version like @vN.x.y",
+        "actions/checkout uses the same version in ci.yml and release.yaml after the edit",
+        "The ./local-action, docker://alpine:3.19, and SHA-pinned softprops/action-gh-release references are unchanged",
+        "The edited files remain valid YAML and the with: node-version block under setup-node is preserved",
+        "The final response mentions the SHA-pinned action separately instead of silently converting or upgrading it"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "single-action-version-check",
+      "prompt": "is actions/checkout@v3 in my ci outdated? what's the latest version right now",
+      "expected_output": "The agent answers from a live GitHub API query (not memory or web search): it reports the current latest version of actions/checkout as returned by releases/latest today, states that v3 is outdated, and recommends the latest major tag form. No file is modified.",
+      "files": ["evals/fixtures/.github/workflows/ci.yml"],
+      "expectations": [
+        "The reported latest version of actions/checkout matches today's GitHub API releases/latest tag_name",
+        "The answer is obtained by querying the GitHub API during the run (visible in the transcript), not asserted from memory or web search",
+        "The response clearly states v3 is outdated and names the recommended major tag",
+        "No workflow file is modified"
+      ]
+    }
+  ]
+}
