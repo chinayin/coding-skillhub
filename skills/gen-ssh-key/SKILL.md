@@ -28,7 +28,7 @@ For first use, `cp .env.example .env` at the skill root and point it at a centra
 ## Usage
 
 ```bash
-./scripts/gen-ssh-key.sh jumpserver                       # Ed25519 → jumpserver.{ppk,pem,pub}
+./scripts/gen-ssh-key.sh jumpserver                       # Ed25519 -> jumpserver.{ppk,pem,pub}
 ./scripts/gen-ssh-key.sh jumpserver --rsa                 # RSA 4096
 ./scripts/gen-ssh-key.sh jumpserver --comment "you@example.com"
 ./scripts/gen-ssh-key.sh jumpserver --passphrase-file ./pp.txt   # encrypt the private key
@@ -52,7 +52,7 @@ For first use, `cp .env.example .env` at the skill root and point it at a centra
 
 ## Exit Codes
 
-`0` success · `1` bad argument / target already exists / generation failed (the underlying tool's own non-zero code when it errors) · `2` no usable tool (neither puttygen nor ssh-keygen found).
+`0` success; `1` bad argument / target already exists / generation failed (the underlying tool's own non-zero code when it errors); `2` no usable tool (neither puttygen nor ssh-keygen found).
 
 ## Self-test
 

@@ -16,12 +16,15 @@ skills/
 │   └── SKILL.md
 └── gen-ssh-key/              # 按团队规范生成 SSH 密钥
     ├── SKILL.md
-    ├── gen-ssh-key.sh        # 核心脚本
+    ├── scripts/
+    │   └── gen-ssh-key.sh    # 核心脚本
+    ├── evals/
+    │   └── evals.json        # Agent 行为级回归测试用例
     ├── test.sh               # 自测
     └── .env.example          # 配置样例
 ```
 
-每个技能以独立目录存在，目录名即技能名，内部至少包含 `SKILL.md` 文件；带脚本的技能同目录附带可执行脚本与配置样例。
+每个技能以独立目录存在，目录名即技能名，内部至少包含 `SKILL.md` 文件；带脚本的技能同目录附带可执行脚本（位于 `scripts/`）、自测脚本、配置样例，部分技能另附 `evals/evals.json` 回归测试用例。
 
 ## 技能列表
 
